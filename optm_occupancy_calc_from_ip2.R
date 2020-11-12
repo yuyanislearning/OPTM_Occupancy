@@ -1,5 +1,6 @@
 # rm(list = ls(all = T)); 
-
+###################################################################################################
+# Get the OPTM spec count of all sites and the O-PTM, O-PTM occupancy calculation
 
 ####################################################################################################
 ### call libraries
@@ -11,39 +12,20 @@ library(seqinr); # to read fasta file
 ####################################################################################################
 ### set parameters: working dir, folder names,  desired output file name, and database fasta file name 
 ####################################################################################################
-setwd("/Users/howardchoi/Desktop/optm_mouse_2019/");
+#setwd("~/Desktop/Projects/peipei/OPTM/");
 
-folder_names = 
-  c("CysCarbonylation",
-  "CysSulfonylation");
-  # c("MetSulfoxidation",
-  #   "ArgHydroxylation",
-  #   "AsnHydroxylation",
-  #   "AspHydroxylation",
-  #   "CysCarbonylation",
-  #   "CysSulfinylation",
-  #   "CysSulfonylation",
-  #   "LysCarbonylation",
-  #   "LysHydroxylation",
-  #   "MetSulfonation",
-  #   "MetSulfoxidation",
-  #   "PheHydroxylation",
-  #   "ProCarbonylation",
-  #   "TryHydroxylation",
-  #   "TyrHydroxylation",
-  #   "ValHydroxylation")
     
-output_csv_name = "optm_occupancy_mouse_2019.csv"
-
-database_file_name = "_ip2_ip2_data_nhlbi_database__SwissProt_mouse_06-12-2016_reversed.fasta";
-# database_file_name = "_ip2_ip2_data_nhlbi_database__SwissProt_Human_contaminant_05-20-2020_reversed.fasta";
+#output_csv_name = "optm_occupancy_mouse_2019.csv"
+# change based on the info from input
+# database_file_name = "_ip2_ip2_data_nhlbi_database__SwissProt_mouse_06-12-2016_reversed.fasta";
+# database_file_name = "fasta/_ip2_ip2_data_nhlbi_database__UniProt_SP_TR_mouse_contaminant_03-25-2019_reversed.fasta";
 
 
 ####################################################################################################
 ####################################################################################################
 is_dta_protein_line = function(lines){
   
-  protein_regexp = "\\w*sp\\|";
+  protein_regexp = "\\w*sp\\||\\w*tr\\|";
   contaminant_regexp = "contaminant";
   
   bool_lines = ((lines %>% str_starts(protein_regexp)) | 
@@ -75,7 +57,6 @@ valid_cys_line = function(sequences){
 wrangle_dta_select_filter = function(a_dta_select_filter){
   
   dw_start_time = Sys.time();
-  # a_dta_select_filter = paste(each_folder_name,each_file_name, sep = "/")
   
   raw_data = read_lines(a_dta_select_filter);
   
@@ -117,10 +98,11 @@ wrangle_dta_select_filter = function(a_dta_select_filter){
   num_peptide_lines = -1;
   # dta_dw = tibble();
   
-  spec_num_vec = c();
-  redundancy_vec = c();
-  modified_peptide_vec = c();
-  protein_vec = c();
+  spec_num_vec = rep(NA, length(raw_data));
+  redundancy_vec = rep(NA, length(raw_data));
+  modified_peptide_vec = rep(NA, length(raw_data));
+  protein_vec = rep(NA, length(raw_data));
+  count = 1
   
   for(i in c(1:length(protein_peptide_line_indicator))){
     
@@ -135,14 +117,15 @@ wrangle_dta_select_filter = function(a_dta_select_filter){
         }
       num_peptide_lines = 0;
       }
-    else if((protein_peptide_line_indicator[i] == 2)){ # peptide line: 2
+    if((protein_peptide_line_indicator[i] == 2)){ # peptide line: 2
       
-      if(valid_cys_line_indicator[i]){
-        spec_num_vec = c(spec_num_vec, table_data_file_name[i]);
-        redundancy_vec = c(redundancy_vec, table_data_redundancy[i]);
-        modified_peptide_vec = c(modified_peptide_vec, table_data_sequence[i]);
-        protein_vec = c(protein_vec, proteins);
-      }
+      #if(valid_cys_line_indicator[i]){
+        spec_num_vec[count] =  table_data_file_name[i];
+        redundancy_vec[count] = table_data_redundancy[i];
+        modified_peptide_vec[count] =  table_data_sequence[i];
+        protein_vec[count] =  proteins;
+        count = count +1
+      #}
       
       num_peptide_lines =  num_peptide_lines + 1
       }
@@ -152,11 +135,13 @@ wrangle_dta_select_filter = function(a_dta_select_filter){
     #   }
     }
   
+  rm_index = is.na(spec_num_vec)
+
   dta_dw = 
-    tibble(spec_num = spec_num_vec,
-           redundancy = redundancy_vec,
-           modified_peptide = modified_peptide_vec,
-           protein = protein_vec);
+    tibble(spec_num = spec_num_vec[!rm_index],
+           redundancy = redundancy_vec[!rm_index],
+           modified_peptide = modified_peptide_vec[!rm_index],
+           protein = protein_vec[!rm_index]);
   
   max_protein_num = (dta_dw$protein %>% str_count(";") %>% max()) + 1
   sep_protein_header = paste("sep", c(1:max_protein_num), sep = "_");
@@ -195,27 +180,22 @@ peptide_mapper = function(a_all_peptides, a_db_dta){
   
   a_db_dta_var_list = rownames(summary(a_db_dta)); # row names
   
-  start_positions_vec = c();
-  end_positions_vec = c();
-  proteins_vec = c();
-  peptides_vec = c();
+  start_positions_vec = rep(NA, dim(a_all_peptides)[1]*2);
+  end_positions_vec = rep(NA, dim(a_all_peptides)[1]*2);
+  proteins_vec = rep(NA, dim(a_all_peptides)[1]*2);
+  peptides_vec = rep(NA, dim(a_all_peptides)[1]*2);
+  count = 1
   
   # a_all_peptides_with_position_info = tibble();
   
-  for (i in c(1:dim(a_all_peptides)[1])){
+  for (i in 1:dim(a_all_peptides)[1]){
     each_peptide = a_all_peptides$peptide[i];
     each_protein = a_all_peptides$protein[i];
     
     pro_idx = (a_db_dta_var_list == each_protein)
     
     start_end_positions = (a_db_dta[pro_idx] %>% str_locate_all(each_peptide))[[1]];
-    # each_tbl =
-    #   (a_db_dta[pro_idx] %>% str_locate_all(each_peptide))[[1]] %>%
-    #   tbl_df() %>%
-    #   add_column(
-    #     protein = each_protein,
-    #     peptide = each_peptide
-    #   )
+
     
     if ((start_end_positions %>% dim())[1] < 1){ # I L confusion
       each_peptide_IL =
@@ -223,212 +203,204 @@ peptide_mapper = function(a_all_peptides, a_db_dta){
         str_replace_all("I|L", "[IL]")
       
       start_end_positions = (a_db_dta[pro_idx] %>% str_locate_all(each_peptide_IL))[[1]];
-      # start_positions = start_end_positions[,1];
-      # end_positions = start_end_positions[,2];
-      # 
-      # each_tbl =
-      #   (a_db_dta[pro_idx] %>% str_locate_all(each_peptide_IL))[[1]] %>%
-      #   tbl_df() %>%
-      #   add_column(
-      #     protein = each_protein,
-      #     peptide = each_peptide
-      #   )
     }
     
-    # if ((start_end_positions %>% dim())[1] < 1){ 
-    #  break 
-    # }
+
     start_positions = start_end_positions[,1];
     end_positions = start_end_positions[,2];
     proteins = rep(each_protein, length(start_positions));
     peptides = rep(each_peptide, length(start_positions));
     
-    start_positions_vec = c(start_positions_vec, start_positions);
-    end_positions_vec = c(end_positions_vec, end_positions);
-    proteins_vec = c(proteins_vec, proteins);
-    peptides_vec = c(peptides_vec, peptides);
+    if (length(start_positions)==0){next}
+    start_positions_vec[count:(count+length(start_positions)-1)] =  start_positions;
+    end_positions_vec[count:(count+length(start_positions)-1)] =  end_positions;
+    proteins_vec[count:(count+length(start_positions)-1)] =  proteins;
+    peptides_vec[count:(count+length(start_positions)-1)] =  peptides;
+    count = count+ length(start_positions)
 
     # a_all_peptides_with_position_info =
     #   a_all_peptides_with_position_info %>%
     #   bind_rows(each_tbl)
   }
   
+  rm_index = is.na(start_positions_vec)
+
   a_all_peptides_with_position_info = 
-    tibble(start = start_positions_vec,
-         end = end_positions_vec,
-         protein = proteins_vec,
-         peptide = peptides_vec);
-  
-  # each_tbl =
-  #   (a_db_dta[pro_idx] %>% str_locate_all(each_peptide_IL))[[1]] %>%
-  #   tbl_df() %>%
-  #   add_column(
-  #     protein = each_protein,
-  #     peptide = each_peptide
-  #   )
+    tibble(start = start_positions_vec[!rm_index],
+         end = end_positions_vec[!rm_index],
+         protein = proteins_vec[!rm_index],
+         peptide = peptides_vec[!rm_index]);
   
   return(a_all_peptides_with_position_info)
 }
 
 
-####################################################################################################
-### re-format dta-select filter files
-####################################################################################################
-### get fasta db data 
-db_dta = prepare_db_fasta(database_file_name)
+optm_occupancy_cal = function(database_file_name, folder_names, batch=FALSE, filename=None, out_name=None ){
+
+  ####################################################################################################
+  ### re-format dta-select filter files
+  ####################################################################################################
+  ### get fasta db data 
+  db_dta = prepare_db_fasta(database_file_name)
 
 
-### go over each optm folder and dta select fileter files in each folder
-# optm_15_data = tibble(); # store all optms and their occupancies in this data frame
+  ### go over each optm folder and dta select fileter files in each folder
+  # optm_15_data = tibble(); # store all optms and their occupancies in this data frame
 
-# go over each folder
-for(each_folder_name in folder_names){
-  
-  print(each_folder_name)
-  #print(Sys.time()) # check 
-  
-  dta_files = list.files(path = each_folder_name, pattern = ".txt"); # read all text files in a folder
-  dta_formatted_data = tibble(); # store all dta filters for each optm and their occupancies in this data frame
-  
-  for(each_file_name in dta_files){
+  # go over each folder
+  for(each_folder_name in folder_names){
     
-    print(each_file_name)
-    
-    dta_data = wrangle_dta_select_filter(paste(each_folder_name,each_file_name, sep = "/"))
-    
-    if(each_file_name %>% str_detect("[Cc]ys")){
-      static_cys_regexp = "C\\(57\\.02146\\)"
-      dta_data = 
+    print(each_folder_name)
+    #print(Sys.time()) # check 
+    if(batch){
+      dta_files = list.files(path = each_folder_name, pattern = ".txt"); # read all text files in a folder
+      dta_formatted_data = tibble();} # store all dta filters for each optm and their occupancies in this data frame}
+    else{
+      dta_files=c(filename)
+      dta_formatted_data = tibble();
+    }
+
+    for(each_file_name in dta_files){
+      
+      print(each_file_name)
+      
+      dta_data = wrangle_dta_select_filter(paste(each_folder_name,each_file_name, sep = "/"))
+      
+      if(each_file_name %>% str_detect("[Cc]ys")){
+        static_cys_regexp = "C\\(57\\.02146\\)"
+        dta_data = 
+          dta_data %>% 
+          mutate(modified_peptide = (modified_peptide %>% str_replace_all(static_cys_regexp, "C")));
+      }
+      
+      
+      # regular expression for clean up
+      modification_regexp = "\\([0-9\\.]*\\)";
+      dot_regexp = "\\.";
+      dash_regexp = "-";
+      modification_localization_regexp = "[A-Z]\\([0-9\\.]*\\)";
+      
+      dta_dw = 
         dta_data %>% 
-        mutate(modified_peptide = (modified_peptide %>% str_replace_all(static_cys_regexp, "C")));
-    }
-    
-    
-    # regular expression for clean up
-    modification_regexp = "\\([0-9\\.]*\\)";
-    dot_regexp = "\\.";
-    dash_regexp = "-";
-    modification_localization_regexp = "[A-Z]\\([0-9\\.]*\\)";
-    
-    dta_dw = 
-      dta_data %>% 
-      #select(spec_num:modified_peptide) %>% 
-      #add_column(protein = dta_data$protein$value) %>% 
-      mutate(num_diff_modified = (modified_peptide %>% str_count("\\("))) %>% 
-      mutate(peptide = (modified_peptide %>% str_replace_all(modification_regexp, ""))) %>% 
-      mutate(peptide = (peptide %>% str_replace_all(dot_regexp, ""))) %>% 
-      mutate(peptide = (peptide %>% str_replace_all(dash_regexp, ""))) %>% 
-      mutate(peptide_for_localization = (modified_peptide %>% str_replace_all(modification_localization_regexp, "\\*"))) %>% 
-      mutate(peptide_for_localization = (peptide_for_localization %>% str_replace_all(dot_regexp, ""))) %>% 
-      mutate(peptide_for_localization = (peptide_for_localization %>% str_replace_all(dash_regexp, ""))) %>% 
-      mutate(diff_mod_local_position = (peptide_for_localization %>% str_locate_all("\\*")));
-      
-    # unnest modified ones
-    unnest_modified = 
-      dta_dw %>% 
-      filter(num_diff_modified >= 1) %>% 
-      unnest(diff_mod_local_position);
-    
-    # remove Reverse or contaminant protein match
-    reverse_regexp = "Reverse"
-    contaminant_regexp = "contaminant"
-    
-    dta_local_position_dw =
-      unnest_modified %>% 
-      select(spec_num:peptide) %>% 
-      add_column(diff_mod_local_position = unnest_modified$diff_mod_local_position[,1]) %>% 
-      bind_rows(
+        #select(spec_num:modified_peptide) %>% 
+        #add_column(protein = dta_data$protein$value) %>% 
+        mutate(num_diff_modified = (modified_peptide %>% str_count("\\("))) %>% 
+        mutate(peptide = (modified_peptide %>% str_replace_all(modification_regexp, ""))) %>% 
+        mutate(peptide = (peptide %>% str_replace_all(dot_regexp, ""))) %>% 
+        mutate(peptide = (peptide %>% str_replace_all(dash_regexp, ""))) %>% 
+        mutate(peptide_for_localization = (modified_peptide %>% str_replace_all(modification_localization_regexp, "\\*"))) %>% 
+        mutate(peptide_for_localization = (peptide_for_localization %>% str_replace_all(dot_regexp, ""))) %>% 
+        mutate(peptide_for_localization = (peptide_for_localization %>% str_replace_all(dash_regexp, ""))) %>% 
+        mutate(diff_mod_local_position = (peptide_for_localization %>% str_locate_all("\\*")));
+        
+      # unnest modified ones
+      unnest_modified = 
         dta_dw %>% 
-          filter(num_diff_modified == 0) %>% 
-          select(spec_num:peptide) %>% 
-          add_column(diff_mod_local_position = NA)) %>% 
-      filter(!(protein %>% str_starts(reverse_regexp))) %>%   # remove Reverse
-      filter(!(protein %>% str_starts(contaminant_regexp))) %>%   # remove contaminants
-      add_column(sample_rep = each_file_name,
-                 type = each_folder_name);
+        filter(num_diff_modified >= 1) %>% 
+        unnest(diff_mod_local_position);
       
-    dta_formatted_data = 
+      # remove Reverse or contaminant protein match
+      reverse_regexp = "Reverse"
+      contaminant_regexp = "contaminant"
+      
+      dta_local_position_dw =
+        unnest_modified %>% 
+        select(spec_num:peptide) %>% 
+        add_column(diff_mod_local_position = unnest_modified$diff_mod_local_position[,1]) %>% 
+        bind_rows(
+          dta_dw %>% 
+            filter(num_diff_modified == 0) %>% 
+            select(spec_num:peptide) %>% 
+            add_column(diff_mod_local_position = NA)) %>% 
+        filter(!(protein %>% str_starts(reverse_regexp))) %>%   # remove Reverse
+        filter(!(protein %>% str_starts(contaminant_regexp))) %>%   # remove contaminants
+        add_column(sample_rep = each_file_name,
+                  type = each_folder_name);
+        
+      dta_formatted_data = 
+        dta_formatted_data %>% 
+        bind_rows(dta_local_position_dw)
+      }
+    
+    
+    ### peptide mapping using db_dta
+    all_peptides =
       dta_formatted_data %>% 
-      bind_rows(dta_local_position_dw)
-    }
-  
-  
-  ### peptide mapping using db_dta
-  all_peptides =
-    dta_formatted_data %>% 
-    select(peptide, protein) %>% 
-    unique();
-  
-  all_peptides_with_position_info = peptide_mapper(all_peptides, db_dta)
+      select(peptide, protein) %>% 
+      unique();
     
-  
-  ### calculate occupancy
-  dta_global_position_dw = 
-    dta_formatted_data %>% 
-    left_join(all_peptides_with_position_info,
-              by = c("protein", "peptide")) %>% 
-    mutate(diff_mod_global_position = start + diff_mod_local_position - 1);
-  
-  optm_data = 
-    dta_global_position_dw %>% 
-    filter(num_diff_modified > 0) %>% 
-    group_by(protein, diff_mod_global_position, sample_rep, type) %>% 
-    summarize(spec_count_modified = sum(as.numeric(redundancy))) %>% 
-    ungroup();
-  
-  # optm_dw = tibble();
-  protein_vec = c();
-  diff_mod_global_position_vec = c();
-  sample_rep_vec = c();
-  type_vec = c();
-  spec_count_modified_vec = c();
-  spec_count_unmodified_vec = c();
-  
-  for (i in c(1:dim(optm_data)[1])){
-    each_optm = optm_data[i,];
+    all_peptides_with_position_info = peptide_mapper(all_peptides, db_dta)
+      
     
-    each_non_modified = 
+    ### calculate occupancy
+    dta_global_position_dw = 
+      dta_formatted_data %>% 
+      left_join(all_peptides_with_position_info,
+                by = c("protein", "peptide")) %>% 
+      mutate(diff_mod_global_position = start + diff_mod_local_position - 1);
+    
+    # gathering same site
+    optm_data = 
       dta_global_position_dw %>% 
-      filter(protein == each_optm$protein & 
-               num_diff_modified == 0 &
-               sample_rep == each_optm$sample_rep &
-               type == each_optm$type &
-               ((start <= each_optm$diff_mod_global_position) & (end >= each_optm$diff_mod_global_position)));
+      filter(num_diff_modified > 0) %>% 
+      group_by(protein, diff_mod_global_position, sample_rep, type) %>% 
+      summarize(spec_count_modified = sum(as.numeric(redundancy))) %>% 
+      ungroup();
     
-    protein_vec = c(protein_vec, each_optm$protein);
-    diff_mod_global_position_vec = c(diff_mod_global_position_vec, each_optm$diff_mod_global_position);
-    sample_rep_vec = c(sample_rep_vec, each_optm$sample_rep);
-    type_vec = c(type_vec, each_optm$type);
-    spec_count_modified_vec = c(spec_count_modified_vec, each_optm$spec_count_modified);
-    spec_count_unmodified_vec = c(spec_count_unmodified_vec, sum(as.numeric(each_non_modified$redundancy)));
+    # optm_dw = tibble();
+    protein_vec = rep(NA, dim(optm_data)[1]);
+    diff_mod_global_position_vec = rep(NA, dim(optm_data)[1]);
+    sample_rep_vec = rep(NA, dim(optm_data)[1]);
+    type_vec = rep(NA, dim(optm_data)[1]);
+    spec_count_modified_vec = rep(NA, dim(optm_data)[1]);
+    spec_count_unmodified_vec = rep(NA, dim(optm_data)[1]);
+    count = 1
 
-    # optm_dw = 
-    #   optm_dw %>% 
-    #   bind_rows(each_optm %>% 
-    #               add_column(spec_count_unmodified = sum(as.numeric(each_non_modified$redundancy))));
+    for (i in c(1:dim(optm_data)[1])){
+      each_optm = optm_data[i,];
+      
+      # get count of non-modified
+      each_non_modified = 
+        dta_global_position_dw %>% 
+        filter(protein == each_optm$protein & 
+                num_diff_modified == 0 &
+                sample_rep == each_optm$sample_rep &
+                type == each_optm$type &
+                ((start <= each_optm$diff_mod_global_position) & (end >= each_optm$diff_mod_global_position)));
+      
+      protein_vec[count] =  each_optm$protein;
+      diff_mod_global_position_vec[count] =each_optm$diff_mod_global_position;
+      sample_rep_vec[count] =  each_optm$sample_rep;
+      type_vec[count] =  each_optm$type;
+      spec_count_modified_vec[count] = each_optm$spec_count_modified;
+      spec_count_unmodified_vec[count] =  sum(as.numeric(each_non_modified$redundancy));
+      count = count +1
+
+    }
+    rm_index = is.na(protein_vec)
+
+
+    optm_dw = 
+      tibble(protein = protein_vec[!rm_index],
+            diff_mod_global_position = diff_mod_global_position_vec[!rm_index],
+            sample_rep = sample_rep_vec[!rm_index],
+            type = type_vec[!rm_index],
+            spec_count_modified = spec_count_modified_vec[!rm_index],
+            spec_count_unmodified = spec_count_unmodified_vec[!rm_index]) %>% 
+      filter(!is.na(diff_mod_global_position));
+      
+    
+    # # store all optms
+    # optm_15_data =
+    #   optm_15_data %>% 
+    #   bind_rows(optm_dw)
+    optm_dw %>% write_csv(paste0(each_folder_name,'_', out_name, ".csv"));
+    # rm(optm_dw);
+    #print(Sys.time()) # print the end time
   }
-  
-  optm_dw = 
-    tibble(protein = protein_vec,
-           diff_mod_global_position = diff_mod_global_position_vec,
-           sample_rep = sample_rep_vec,
-           type = type_vec,
-           spec_count_modified = spec_count_modified_vec,
-           spec_count_unmodified = spec_count_unmodified_vec) %>% 
-    filter(!is.na(diff_mod_global_position));
-    
-  
-  # # store all optms
-  # optm_15_data =
-  #   optm_15_data %>% 
-  #   bind_rows(optm_dw)
-  optm_dw %>% write_csv(paste(each_folder_name, ".csv", sep = ""));
-  # rm(optm_dw);
-  #print(Sys.time()) # print the end time
+      
+
+
+
+
 }
-    
-# dta_formatted_data %>% write_csv("met_sul_dta_prep.csv")
-
-
-
-
