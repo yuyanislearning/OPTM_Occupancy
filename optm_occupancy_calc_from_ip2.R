@@ -235,13 +235,13 @@ peptide_mapper = function(a_all_peptides, a_db_dta){
 }
 
 
-optm_occupancy_cal = function(database_file_name, folder_names, batch=FALSE, filename=None, out_name=None ){
-  '''
-  batch: determine whether to process a batch or just single file, 
-  if batch==T, folder_names will be a list of folder names you want to look in, filename can be ignored
-  if batch==F, which means only one file will be processed, then folder_names should be only one folder and
-  filename will be name of the file you want to look at
-  '''
+optm_occupancy_cal = function(database_file_name, folder_names, batch=FALSE, filename=NA, out_name=None ){
+  
+  # batch: determine whether to process a batch or just single file,
+  # if batch==T, folder_names will be a list of folder names you want to look in, filename can be ignored
+  # if batch==F, which means only one file will be processed, then folder_names should be only one folder and
+  # filename will be name of the file you want to look at
+
 
   ####################################################################################################
   ### re-format dta-select filter files
@@ -404,9 +404,4 @@ optm_occupancy_cal = function(database_file_name, folder_names, batch=FALSE, fil
     # rm(optm_dw);
     #print(Sys.time()) # print the end time
   }
-      
-
-
-
-
 }
