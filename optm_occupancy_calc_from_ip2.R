@@ -230,7 +230,7 @@ peptide_mapper = function(a_all_peptides, a_db_dta){
 }
 
 
-optm_occupancy_cal = function(database_file_name,  filenames=NA, out_name=NA ){
+optm_occupancy_cal = function(database_file_name,  filenames=NA ){
   
   # filenames: a vector of filenames of replicates
 
@@ -353,15 +353,15 @@ optm_occupancy_cal = function(database_file_name,  filenames=NA, out_name=NA ){
     tibble(protein = protein_vec[!rm_index],
           diff_mod_global_position = diff_mod_global_position_vec[!rm_index],
           spec_count_modified = spec_count_modified_vec[!rm_index],
-          spec_count_unmodified = spec_count_unmodified_vec[!rm_index]) %>% 
-    filter(!is.na(diff_mod_global_position));
+          spec_count_unmodified = spec_count_unmodified_vec[!rm_index]) %>%
+          filter(!is.na(diff_mod_global_position));
     
   
   # # store all optms
   # optm_15_data =
   #   optm_15_data %>% 
   #   bind_rows(optm_dw)
-  optm_dw %>% write_csv(paste0(each_folder_name,'_', out_name, ".csv"));
+  return(optm_dw) 
   # rm(optm_dw);
   #print(Sys.time()) # print the end time
 
