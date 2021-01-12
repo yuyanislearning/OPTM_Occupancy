@@ -233,6 +233,7 @@ peptide_mapper = function(a_all_peptides, a_db_dta){
 optm_occupancy_cal = function(database_file_name,  filenames=NA ){
   
   # filenames: a vector of filenames of replicates
+  # if no merge is needed, pass single file name to filenames
 
   ####################################################################################################
   ### re-format dta-select filter files
