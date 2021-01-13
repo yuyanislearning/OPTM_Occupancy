@@ -53,6 +53,14 @@ wrangle_dta_filter = function(a_dta_select_filter){
     tibble(spec_num = spec_vec[!rm_index],
            nsaf = nsaf_vec[!rm_index],
            protein = protein_vec[!rm_index]);
+  
+  # remove reverse and contaminant
+  reverse_regexp = "Reverse"
+  contaminant_regexp = "contaminant"
+  dta_dw = dta_dw %>%
+    filter(!(protein %>% str_starts(reverse_regexp))) %>%   # remove Reverse
+    filter(!(protein %>% str_starts(contaminant_regexp)))  # remove contaminants
+  
   return(dta_dw)
 }
 
