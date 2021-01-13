@@ -1,5 +1,15 @@
 ##############################################################
 # EXTRACT NSAF VALUE
+is_dta_protein_line = function(lines){
+  
+  protein_regexp = "\\w*sp\\||\\w*tr\\|";
+  contaminant_regexp = "contaminant";
+  
+  bool_lines = ((lines %>% str_starts(protein_regexp)) | 
+                  (lines %>% str_starts(contaminant_regexp)))
+  
+  return (bool_lines)
+}
 
 wrangle_dta_filter = function(a_dta_select_filter){
   # note the time
